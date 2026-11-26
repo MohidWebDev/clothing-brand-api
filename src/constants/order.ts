@@ -3,8 +3,8 @@
  * placed -> paid -> packed -> shipped -> delivered -> returned -> refunded
  *
  * Cash on Delivery (the dominant method in Pakistan) is paid at the door, so a COD order
- * may go placed -> packed directly. Orders paid online must be `paid` before `packed`;
- * that rule lives in the order service, which knows the payment method.
+ * may go placed -> packed directly. Orders paid through PayFast must be `paid` before
+ * `packed`; that rule lives in the order service, which knows the payment method.
  */
 export const ORDER_STATUS = {
   PLACED: 'placed',
@@ -40,7 +40,7 @@ export function canTransitionOrder(from: OrderStatus, to: OrderStatus): boolean 
 
 export const PAYMENT_METHOD = {
   COD: 'cod',
-  ONLINE: 'online',
+  PAYFAST: 'payfast',
 } as const;
 
 export type PaymentMethod = (typeof PAYMENT_METHOD)[keyof typeof PAYMENT_METHOD];
