@@ -69,30 +69,47 @@ export interface IProduct {
 
 export type ProductDocument = HydratedDocument<IProduct>;
 
-const variantSchema = new Schema<IVariant>({
-  sku: { type: String, required: true, trim: true, uppercase: true, maxlength: 40 },
-  size: { type: String, required: true, trim: true, maxlength: 20 },
-  color: {
-    name: { type: String, required: true, trim: true, maxlength: 40 },
-    hex: { type: String, required: true, match: /^#[0-9a-fA-F]{6}$/ },
+// Mongoose runs custom validators on null (it only skips undefined), so optional integer
+// fields must accept null explicitly.
+const isNullOrInteger = (v: unknown) => v == null || Number.isInteger(v);
+
+const variantSchema = new Schema<IVariant>(
+  {
+    sku: { type: String, required: true, trim: true, uppercase: true, maxlength: 40 },
+    size: { type: String, required: true, trim: true, maxlength: 20 },
+    color: {
+      name: { type: String, required: true, trim: true, maxlength: 40 },
+      hex: { type: String, required: true, match: /^#[0-9a-fA-F]{6}$/ },
+    },
+    colorKey: { type: String, required: true },
+    stock: {
+      type: Number,
+      required: true,
+      default: 0,
+      min: 0,
+      validate: { validator: Number.isInteger, message: 'Stock must be a whole number' },
+    },
+    price: {
+      type: Number,
+      min: 1,
+      validate: { validator: isNullOrInteger, message: 'Price must be a whole number of rupees' },
+    },
+    lowStockThreshold: { type: Number, default: DEFAULT_LOW_STOCK_THRESHOLD, min: 0 },
+    images: { type: [imageSchema], default: [] },
+    isActive: { type: Boolean, default: true },
   },
-  colorKey: { type: String, required: true },
-  stock: {
-    type: Number,
-    required: true,
-    default: 0,
-    min: 0,
-    validate: { validator: Number.isInteger, message: 'Stock must be a whole number' },
+  {
+    // Subdocuments do not inherit the parent's toJSON options, so variants need their own to
+    // expose `id` (the id virtual) instead of `_id`.
+    toJSON: {
+      virtuals: true,
+      transform: (_doc, ret: Record<string, unknown>) => {
+        delete ret._id;
+        return ret;
+      },
+    },
   },
-  price: {
-    type: Number,
-    min: 1,
-    validate: { validator: Number.isInteger, message: 'Price must be a whole number of rupees' },
-  },
-  lowStockThreshold: { type: Number, default: DEFAULT_LOW_STOCK_THRESHOLD, min: 0 },
-  images: { type: [imageSchema], default: [] },
-  isActive: { type: Boolean, default: true },
-});
+);
 
 const productSchema = new Schema<IProduct>(
   {
@@ -121,7 +138,7 @@ const productSchema = new Schema<IProduct>(
     compareAtPrice: {
       type: Number,
       min: 1,
-      validate: { validator: Number.isInteger, message: 'Price must be a whole number of rupees' },
+      validate: { validator: isNullOrInteger, message: 'Price must be a whole number of rupees' },
     },
     status: {
       type: String,

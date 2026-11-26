@@ -272,7 +272,9 @@ export const productService = {
     if (input.images !== undefined) product.images = input.images as never;
     if (input.price !== undefined) product.price = input.price;
     if (input.fabric !== undefined) product.fabric = input.fabric ?? undefined;
-    if (input.compareAtPrice !== undefined) product.compareAtPrice = input.compareAtPrice;
+    // null means "clear": store it as unset rather than as a null value.
+    if (input.compareAtPrice !== undefined)
+      product.compareAtPrice = input.compareAtPrice ?? undefined;
     if (input.metaTitle !== undefined) product.metaTitle = input.metaTitle ?? undefined;
     if (input.metaDescription !== undefined) {
       product.metaDescription = input.metaDescription ?? undefined;
@@ -321,7 +323,7 @@ export const productService = {
     if (input.sku !== undefined) variant.sku = input.sku;
     if (input.size !== undefined) variant.size = input.size;
     if (input.color !== undefined) variant.color = input.color;
-    if (input.price !== undefined) variant.price = input.price;
+    if (input.price !== undefined) variant.price = input.price ?? undefined;
     if (input.lowStockThreshold !== undefined) variant.lowStockThreshold = input.lowStockThreshold;
     if (input.images !== undefined) variant.images = input.images as never;
     if (input.isActive !== undefined) variant.isActive = input.isActive;
