@@ -97,6 +97,27 @@ describeDb('inventory API', () => {
       expect(await StockMovement.countDocuments({ product: product._id })).toBe(5);
     });
 
+    it('keeps the cached stock fields correct under repeated concurrent changes', async () => {
+      // Run many rounds: a stale recalculation overwriting a newer one is intermittent.
+      for (let round = 0; round < 15; round++) {
+        const { product, variant } = await setup([{ size: 'M', stock: 6 }]);
+        const path = stockPath(product._id, variant._id);
+
+        await Promise.all([
+          ...Array.from({ length: 6 }, () => api('patch', path, manager).send({ delta: -1 })),
+          ...Array.from({ length: 2 }, () =>
+            api('patch', path, manager).send({ delta: 3, reason: 'restock' }),
+          ),
+        ]);
+
+        const fresh = await Product.findById(product._id);
+        const stock = fresh!.variants[0]!.stock;
+        expect(fresh!.totalStock).toBe(stock);
+        expect(fresh!.inStock).toBe(stock > 0);
+        expect(fresh!.sizes).toEqual(stock > 0 ? ['M'] : []);
+      }
+    });
+
     it('sets an absolute value and reports no-ops', async () => {
       const { product, variant } = await setup();
       const set = await api('patch', stockPath(product._id, variant._id), manager).send({

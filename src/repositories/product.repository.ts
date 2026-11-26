@@ -167,7 +167,7 @@ export const productRepository = {
         ...alive,
         variants: { $elemMatch: { _id: variantId, stock: { $gte: -delta } } },
       },
-      { $inc: { 'variants.$.stock': delta } },
+      { $inc: { 'variants.$.stock': delta, stockVersion: 1 } },
       { returnDocument: 'after' },
     ),
 
@@ -175,17 +175,31 @@ export const productRepository = {
   setStockIfUnchanged: (productId: string, variantId: string, expected: number, next: number) =>
     Product.findOneAndUpdate(
       { _id: productId, ...alive, variants: { $elemMatch: { _id: variantId, stock: expected } } },
-      { $set: { 'variants.$.stock': next } },
+      { $set: { 'variants.$.stock': next }, $inc: { stockVersion: 1 } },
       { returnDocument: 'after' },
     ),
 
-  /** Recomputes the denormalised fields from the current variants. */
+  /**
+   * Recomputes the denormalised fields from the current variants. Safe under concurrency: the
+   * write only lands if no stock change happened since the read (see stockVersion), otherwise it
+   * re-reads and tries again, so a stale calculation can never overwrite a newer one.
+   */
   async refreshDerived(id: string | Types.ObjectId) {
-    const product = await Product.findById(id);
-    if (!product) return null;
-    const derived = computeDerived(product);
-    await Product.updateOne({ _id: id }, { $set: derived });
-    return derived;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const product = await Product.findById(id);
+      if (!product) return null;
+
+      const version = product.stockVersion ?? 0;
+      const derived = computeDerived(product);
+      const result = await Product.updateOne(
+        // Documents created before versioning have no stockVersion; treat missing as 0.
+        { _id: id, stockVersion: version === 0 ? { $in: [0, null] } : version },
+        { $set: derived },
+        { timestamps: false },
+      );
+      if (result.matchedCount === 1) return derived;
+    }
+    throw new Error(`Could not refresh derived stock fields for product ${String(id)}`);
   },
 
   /** Variants at or below their low-stock threshold, emptiest first. */

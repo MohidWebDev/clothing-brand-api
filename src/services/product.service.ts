@@ -365,8 +365,9 @@ export const productService = {
     await product.save();
 
     const added = product.variants[product.variants.length - 1]!;
+    await productRepository.refreshDerived(product._id);
     await stockMovementRepository.createMany(initialMovements(product._id, [added], userId));
-    return toAdminProduct(product);
+    return toAdminProduct((await productRepository.findById(id)) ?? product);
   },
 
   async updateVariant(id: string, variantId: string, input: UpdateVariantBody) {
@@ -385,8 +386,9 @@ export const productService = {
     if (input.isActive !== undefined) variant.isActive = input.isActive;
 
     await product.save();
+    await productRepository.refreshDerived(product._id);
     await deleteRemovedImages(previousImages, variant.images);
-    return toAdminProduct(product);
+    return toAdminProduct((await productRepository.findById(id)) ?? product);
   },
 
   async removeVariant(id: string, variantId: string) {
@@ -403,7 +405,8 @@ export const productService = {
     const removedImages = [...variant.images];
     product.variants = remaining as never;
     await product.save();
+    await productRepository.refreshDerived(product._id);
     await deleteRemovedImages(removedImages, []);
-    return toAdminProduct(product);
+    return toAdminProduct((await productRepository.findById(id)) ?? product);
   },
 };

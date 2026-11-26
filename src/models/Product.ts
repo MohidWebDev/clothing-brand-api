@@ -64,6 +64,12 @@ export interface IProduct {
   ratingCount: number;
   soldCount: number;
 
+  /**
+   * Bumped by every atomic stock change. refreshDerived writes only if it has not moved since it
+   * read the product, so a slow, stale recalculation can never overwrite a newer one.
+   */
+  stockVersion?: number;
+
   deletedAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
@@ -174,6 +180,7 @@ const productSchema = new Schema<IProduct>(
     ratingAverage: { type: Number, default: 0, min: 0, max: 5 },
     ratingCount: { type: Number, default: 0, min: 0 },
     soldCount: { type: Number, default: 0, min: 0 },
+    stockVersion: { type: Number, default: 0 },
 
     deletedAt: { type: Date, default: null },
   },
@@ -185,6 +192,7 @@ const productSchema = new Schema<IProduct>(
         delete ret._id;
         delete ret.__v;
         delete ret.deletedAt;
+        delete ret.stockVersion;
         return ret;
       },
     },
