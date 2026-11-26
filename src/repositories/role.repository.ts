@@ -21,6 +21,6 @@ export const roleRepository = {
             $set: { displayName: role.displayName, isSystem: true },
             $setOnInsert: { permissions: role.permissions },
           },
-      { upsert: true, new: true },
+      { upsert: true, returnDocument: 'after' },
     ),
 };

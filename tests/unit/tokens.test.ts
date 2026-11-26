@@ -16,6 +16,12 @@ describe('access tokens', () => {
     expect(payload.exp - payload.iat).toBe(env.ACCESS_TOKEN_TTL_SECONDS);
   });
 
+  it('carries the password version', () => {
+    expect(verifyAccessToken(signAccessToken('u')).pv).toBe(0);
+    const changedAt = new Date('2026-01-01T00:00:00.123Z');
+    expect(verifyAccessToken(signAccessToken('u', changedAt)).pv).toBe(changedAt.getTime());
+  });
+
   it('rejects garbage', () => {
     expect(() => verifyAccessToken('nope')).toThrow(ApiError);
   });

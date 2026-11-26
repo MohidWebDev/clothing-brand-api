@@ -18,7 +18,7 @@ export const refreshTokenRepository = {
     RefreshToken.findOneAndUpdate(
       { _id: id, revokedAt: { $exists: false } },
       { $set: { revokedAt: new Date(), ...(replacedBy && { replacedBy }) } },
-      { new: true },
+      { returnDocument: 'after' },
     ),
 
   linkReplacement: (id: Types.ObjectId, replacedBy: Types.ObjectId) =>

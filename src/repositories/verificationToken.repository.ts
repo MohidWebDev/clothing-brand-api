@@ -24,7 +24,7 @@ export const verificationTokenRepository = {
     VerificationToken.findOneAndUpdate(
       { tokenHash, type, usedAt: { $exists: false }, expiresAt: { $gt: new Date() } },
       { $set: { usedAt: new Date() } },
-      { new: true },
+      { returnDocument: 'after' },
     ),
 
   /** Invalidates earlier unused tokens of the same type when a new one is issued. */

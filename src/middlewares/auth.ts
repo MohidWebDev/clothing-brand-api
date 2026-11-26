@@ -21,8 +21,8 @@ async function resolveUser(token: string): Promise<AuthUser> {
   if (!user || !user.isActive || !user.role)
     throw ApiError.unauthorized('Invalid or expired token');
 
-  // A password change invalidates every access token issued before it.
-  if (user.passwordChangedAt && payload.iat < Math.floor(user.passwordChangedAt.getTime() / 1000)) {
+  // A password change invalidates every access token issued under the old password.
+  if (payload.pv !== (user.passwordChangedAt?.getTime() ?? 0)) {
     throw ApiError.unauthorized('Session expired, please sign in again');
   }
 

@@ -30,7 +30,7 @@ export const userRepository = {
   emailExists: async (email: string) => (await User.exists({ email })) !== null,
 
   recordFailedLogin: (id: Types.ObjectId) =>
-    User.findByIdAndUpdate(id, { $inc: { failedLoginAttempts: 1 } }, { new: true }),
+    User.findByIdAndUpdate(id, { $inc: { failedLoginAttempts: 1 } }, { returnDocument: 'after' }),
 
   lockAccount: (id: Types.ObjectId, until: Date) =>
     User.updateOne({ _id: id }, { $set: { lockUntil: until, failedLoginAttempts: 0 } }),
@@ -44,12 +44,16 @@ export const userRepository = {
   markEmailVerified: (id: Types.ObjectId) =>
     User.updateOne({ _id: id }, { $set: { isEmailVerified: true } }),
 
-  updatePassword: (id: Types.ObjectId, passwordHash: string) =>
-    User.updateOne(
+  /** Returns the new passwordChangedAt, which is the version access tokens are tied to. */
+  updatePassword: async (id: Types.ObjectId, passwordHash: string): Promise<Date> => {
+    const passwordChangedAt = new Date();
+    await User.updateOne(
       { _id: id },
       {
-        $set: { passwordHash, passwordChangedAt: new Date(), failedLoginAttempts: 0 },
+        $set: { passwordHash, passwordChangedAt, failedLoginAttempts: 0 },
         $unset: { lockUntil: 1 },
       },
-    ),
+    );
+    return passwordChangedAt;
+  },
 };

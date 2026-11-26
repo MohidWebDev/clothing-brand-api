@@ -80,6 +80,7 @@ export function toPublicUser(
 async function issueSession(
   userId: Types.ObjectId,
   meta: RequestMeta,
+  passwordChangedAt?: Date | null,
   family: string = randomUUID(),
 ) {
   const refreshToken = generateOpaqueToken();
@@ -95,7 +96,7 @@ async function issueSession(
   });
 
   const tokens: SessionTokens = {
-    accessToken: signAccessToken(String(userId)),
+    accessToken: signAccessToken(String(userId), passwordChangedAt),
     refreshToken,
     refreshExpiresAt,
   };
@@ -146,7 +147,7 @@ export const authService = {
     );
     await emailService.sendVerificationEmail(user, token);
 
-    const { tokens } = await issueSession(user._id, meta);
+    const { tokens } = await issueSession(user._id, meta, user.passwordChangedAt);
     return { user: toPublicUser(user, role), tokens };
   },
 
@@ -182,7 +183,7 @@ export const authService = {
     if (!role) throw ApiError.internal('User role is missing');
 
     await userRepository.recordSuccessfulLogin(user._id);
-    const { tokens } = await issueSession(user._id, meta);
+    const { tokens } = await issueSession(user._id, meta, user.passwordChangedAt);
     return { user: toPublicUser(user, role), tokens };
   },
 
@@ -211,7 +212,12 @@ export const authService = {
     const revoked = await refreshTokenRepository.revokeIfActive(stored._id);
     if (!revoked) throw ApiError.unauthorized('Invalid refresh token');
 
-    const { tokens, tokenId } = await issueSession(user._id, meta, stored.family);
+    const { tokens, tokenId } = await issueSession(
+      user._id,
+      meta,
+      user.passwordChangedAt,
+      stored.family,
+    );
     await refreshTokenRepository.linkReplacement(stored._id, tokenId);
     return { user: toPublicUser(user, user.role), tokens };
   },
@@ -327,12 +333,15 @@ export const authService = {
       ]);
     }
 
-    await userRepository.updatePassword(user._id, await hashPassword(newPassword));
+    const changedAt = await userRepository.updatePassword(
+      user._id,
+      await hashPassword(newPassword),
+    );
     await refreshTokenRepository.revokeAllForUser(user._id);
     await emailService.sendPasswordChangedEmail(user);
 
     const role = (await roleRepository.findById(user.role)) as RoleDocument;
-    const { tokens } = await issueSession(user._id, meta);
+    const { tokens } = await issueSession(user._id, meta, changedAt);
     return { user: toPublicUser(user, role), tokens };
   },
 };

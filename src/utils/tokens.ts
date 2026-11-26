@@ -9,10 +9,16 @@ export interface AccessTokenPayload {
   sub: string;
   iat: number;
   exp: number;
+  /** Password version: the user's passwordChangedAt in epoch ms at issue time, or 0. */
+  pv: number;
 }
 
-export function signAccessToken(userId: string): string {
-  return jwt.sign({}, env.JWT_ACCESS_SECRET, {
+/**
+ * The `pv` claim ties the token to the password it was issued under. Changing the password
+ * changes the user's version, which instantly invalidates every older access token.
+ */
+export function signAccessToken(userId: string, passwordChangedAt?: Date | null): string {
+  return jwt.sign({ pv: passwordChangedAt?.getTime() ?? 0 }, env.JWT_ACCESS_SECRET, {
     algorithm: 'HS256',
     subject: userId,
     issuer: ISSUER,
@@ -29,7 +35,12 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
     if (typeof payload === 'string' || !payload.sub || !payload.iat || !payload.exp) {
       throw new Error('Malformed token');
     }
-    return { sub: payload.sub, iat: payload.iat, exp: payload.exp };
+    return {
+      sub: payload.sub,
+      iat: payload.iat,
+      exp: payload.exp,
+      pv: typeof payload.pv === 'number' ? payload.pv : 0,
+    };
   } catch {
     throw ApiError.unauthorized('Invalid or expired token');
   }
