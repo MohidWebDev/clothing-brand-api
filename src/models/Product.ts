@@ -37,6 +37,8 @@ export interface IProduct {
   category: Types.ObjectId;
   gender: Gender;
   fabric?: string;
+  /** Lowercase fabric, used for filtering. Derived on save. */
+  fabricKey?: string;
   tags: string[];
   images: IImage[];
   /** Whole PKR rupees (integer). */
@@ -120,6 +122,7 @@ const productSchema = new Schema<IProduct>(
     category: { type: Schema.Types.ObjectId, ref: 'Category', required: true },
     gender: { type: String, enum: GENDERS, required: true },
     fabric: { type: String, trim: true, maxlength: 80 },
+    fabricKey: { type: String, index: false },
     tags: { type: [String], default: [] },
     images: {
       type: [imageSchema],
@@ -219,6 +222,8 @@ productSchema.pre('validate', function () {
     this.invalidate('compareAtPrice', 'Compare-at price must be higher than the selling price');
   }
 
+  this.fabricKey = this.fabric ? this.fabric.trim().toLowerCase() : undefined;
+
   Object.assign(this, computeDerived(this));
 });
 
@@ -231,6 +236,7 @@ productSchema.index({ status: 1, deletedAt: 1, category: 1, createdAt: -1 });
 productSchema.index({ status: 1, deletedAt: 1, brand: 1, createdAt: -1 });
 productSchema.index({ status: 1, deletedAt: 1, priceMin: 1 });
 productSchema.index({ status: 1, deletedAt: 1, soldCount: -1 });
+productSchema.index({ status: 1, deletedAt: 1, fabricKey: 1 });
 productSchema.index({ 'variants.sku': 1 }, { unique: true, sparse: true });
 productSchema.index({ 'variants.size': 1, 'variants.colorKey': 1 });
 

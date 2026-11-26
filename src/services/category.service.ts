@@ -58,6 +58,11 @@ export const categoryService = {
     return buildCategoryTree(flatten(await categoryRepository.listAll(true)));
   },
 
+  /** Flat list of active categories, for counting and breadcrumbs. */
+  async flatActive() {
+    return flatten(await categoryRepository.listAll(true));
+  },
+
   async listAdmin() {
     return buildCategoryTree(flatten(await categoryRepository.listAll(false)));
   },

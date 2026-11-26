@@ -7,6 +7,7 @@ export interface ProductFilterInput {
   categoryIds?: Types.ObjectId[];
   brandIds?: Types.ObjectId[];
   gender?: string[];
+  fabric?: string[];
   size?: string[];
   color?: string[];
   minPrice?: number;
@@ -27,6 +28,7 @@ export function buildPublicProductFilter(input: ProductFilterInput): QueryFilter
   if (input.categoryIds?.length) filter.category = { $in: input.categoryIds };
   if (input.brandIds?.length) filter.brand = { $in: input.brandIds };
   if (input.gender?.length) filter.gender = { $in: input.gender };
+  if (input.fabric?.length) filter.fabricKey = { $in: input.fabric };
   if (input.inStock) filter.inStock = true;
   if (input.onSale) filter.onSale = true;
 

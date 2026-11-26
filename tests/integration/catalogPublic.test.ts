@@ -256,6 +256,157 @@ describeDb('public catalog API', () => {
     });
   });
 
+  describe('fabric filter', () => {
+    it('filters by fabric, case-insensitively and with several values', async () => {
+      const brand = await makeBrand();
+      const cat = await makeCategory();
+      await makeProduct({ brand: brand._id, category: cat._id, name: 'Lawn Suit', fabric: 'Lawn' });
+      await makeProduct({
+        brand: brand._id,
+        category: cat._id,
+        name: 'Khaddar Kurta',
+        fabric: 'Khaddar',
+      });
+      await makeProduct({
+        brand: brand._id,
+        category: cat._id,
+        name: 'Raw Silk Kurta',
+        fabric: 'Raw Silk',
+      });
+      await makeProduct({ brand: brand._id, category: cat._id, name: 'No Fabric' });
+
+      expect(names(await get('/products?fabric=lawn'))).toEqual(['Lawn Suit']);
+      expect(names(await get('/products?fabric=LAWN,khaddar')).sort()).toEqual([
+        'Khaddar Kurta',
+        'Lawn Suit',
+      ]);
+      expect(names(await get('/products?fabric=raw%20silk'))).toEqual(['Raw Silk Kurta']);
+      expect((await get('/products?fabric=velvet')).body.data).toEqual([]);
+    });
+  });
+
+  describe('faceted counts', () => {
+    const catalog = async () => {
+      const brand = await makeBrand('Alpha');
+      const other = await makeBrand('Beta');
+      const women = await makeCategory('Women');
+      const kurtas = await makeCategory('Kurtas', women._id);
+      const suits = await makeCategory('Suits', women._id);
+      const men = await makeCategory('Men');
+      await makeProduct({
+        brand: brand._id,
+        category: kurtas._id,
+        name: 'K1',
+        fabric: 'Cotton',
+        gender: 'women',
+        price: 2000,
+        variants: [{ size: 'S' }, { size: 'M' }],
+      });
+      await makeProduct({
+        brand: brand._id,
+        category: kurtas._id,
+        name: 'K2',
+        fabric: 'Lawn',
+        gender: 'women',
+        price: 3000,
+        variants: [{ size: 'M', color: 'White', hex: '#FFFFFF' }],
+      });
+      await makeProduct({
+        brand: other._id,
+        category: suits._id,
+        name: 'S1',
+        fabric: 'Lawn',
+        gender: 'women',
+        price: 6000,
+        variants: [{ size: 'L' }],
+      });
+      await makeProduct({
+        brand: other._id,
+        category: men._id,
+        name: 'M1',
+        fabric: 'Cotton',
+        gender: 'men',
+        price: 1500,
+        variants: [{ size: 'XL' }],
+      });
+      return { women, kurtas, suits, men };
+    };
+
+    it('counts fabrics and rolls category counts up to parents', async () => {
+      const { women, kurtas, men } = await catalog();
+      const f = (await get('/products/filters')).body.data;
+
+      expect(f.fabrics.map((x: { name: string; count: number }) => [x.name, x.count])).toEqual([
+        ['Cotton', 2],
+        ['Lawn', 2],
+      ]);
+      const count = (id: unknown) =>
+        f.categories.find((c: { id: string }) => c.id === String(id)).count;
+      expect(count(women._id)).toBe(3); // K1, K2, S1
+      expect(count(kurtas._id)).toBe(2);
+      expect(count(men._id)).toBe(1);
+    });
+
+    it('lists every active category, including those with no products', async () => {
+      await catalog();
+      await makeCategory('Empty');
+      const f = (await get('/products/filters')).body.data;
+      const empty = f.categories.find((c: { name: string }) => c.name === 'Empty');
+      expect(empty.count).toBe(0);
+    });
+
+    it('counts each facet with every filter except its own', async () => {
+      await catalog();
+      const f = (await get('/products/filters?fabric=lawn')).body.data;
+
+      // Fabric facet ignores the fabric filter: Cotton is still offered.
+      expect(f.fabrics.map((x: { name: string }) => x.name)).toEqual(['Cotton', 'Lawn']);
+      // Everything else is narrowed to lawn products (K2 and S1).
+      expect(f.brands.map((b: { name: string; count: number }) => [b.name, b.count])).toEqual([
+        ['Alpha', 1],
+        ['Beta', 1],
+      ]);
+      expect(f.genders).toEqual([{ value: 'women', count: 2 }]);
+      expect(f.price).toEqual({ min: 3000, max: 6000 });
+    });
+
+    it('keeps the other sizes available when a size is selected', async () => {
+      await catalog();
+      const f = (await get('/products/filters?size=M')).body.data;
+      const sizes = f.sizes.map((s: { value: string }) => s.value);
+      expect(sizes).toEqual(['S', 'M', 'L', 'XL']);
+      // But other facets only reflect products that come in M.
+      expect(f.brands).toEqual([expect.objectContaining({ name: 'Alpha', count: 2 })]);
+    });
+
+    it('does not let the price filter shrink the price range shown', async () => {
+      await catalog();
+      const f = (await get('/products/filters?minPrice=5000')).body.data;
+      expect(f.price).toEqual({ min: 1500, max: 6000 });
+      expect(f.fabrics.map((x: { name: string; count: number }) => [x.name, x.count])).toEqual([
+        ['Lawn', 1],
+      ]);
+    });
+
+    it('scopes category counts to the other active filters', async () => {
+      const { women } = await catalog();
+      const f = (await get('/products/filters?gender=women&fabric=lawn')).body.data;
+      expect(f.categories.find((c: { id: string }) => c.id === String(women._id)).count).toBe(2);
+    });
+
+    it('returns empty facets for an unknown category or brand', async () => {
+      await catalog();
+      const f = (await get('/products/filters?category=nope')).body.data;
+      expect(f).toMatchObject({ categories: [], fabrics: [], price: null });
+      expect((await get('/products/filters?brand=nope')).body.data.price).toBeNull();
+    });
+
+    it('rejects invalid facet filters', async () => {
+      expect((await get('/products/filters?minPrice=9&maxPrice=1')).status).toBe(400);
+      expect((await get('/products/filters?gender=aliens')).status).toBe(400);
+    });
+  });
+
   describe('search', () => {
     it('finds products by name, tags and description, ranking name matches first', async () => {
       const brand = await makeBrand();

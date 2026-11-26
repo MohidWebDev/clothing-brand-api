@@ -7,6 +7,8 @@ import { escapeRegex } from '../utils/regex';
 
 const alive = { deletedAt: null };
 
+export type FacetName = 'category' | 'brand' | 'gender' | 'fabric' | 'size' | 'color' | 'price';
+
 export interface ListOptions {
   filter: QueryFilter<IProduct>;
   sort: SortSpec;
@@ -86,22 +88,44 @@ export const productRepository = {
       { $set: { deletedAt: new Date(), status: PRODUCT_STATUS.ARCHIVED } },
     ),
 
-  /** Counts per brand, gender, size and color, plus the price range, for the filter sidebar. */
-  async facets(filter: QueryFilter<IProduct>) {
+  /**
+   * Filter-option counts for the sidebar. Each facet is counted with every filter applied EXCEPT
+   * its own (standard faceted search): choosing size M still shows the other sizes, while the
+   * brand and color counts shrink to what is available in size M.
+   * `base` holds what applies to every facet (active status and the text search); `scoped` holds
+   * the remaining filters, already minus the facet's own.
+   */
+  async facets(base: QueryFilter<IProduct>, scoped: Record<FacetName, QueryFilter<IProduct>>) {
     const [result] = await Product.aggregate<{
+      categories: { _id: Types.ObjectId; count: number }[];
       brands: { _id: Types.ObjectId; count: number }[];
       genders: { _id: string; count: number }[];
+      fabrics: { _id: string; name: string; count: number }[];
       sizes: { _id: string; count: number }[];
       colors: { _id: string; name: string; hex: string; count: number }[];
       price: { min: number; max: number }[];
     }>([
-      { $match: filter },
+      { $match: base },
       {
         $facet: {
-          brands: [{ $group: { _id: '$brand', count: { $sum: 1 } } }],
-          genders: [{ $group: { _id: '$gender', count: { $sum: 1 } } }],
-          sizes: [{ $unwind: '$sizes' }, { $group: { _id: '$sizes', count: { $sum: 1 } } }],
+          categories: [
+            { $match: scoped.category },
+            { $group: { _id: '$category', count: { $sum: 1 } } },
+          ],
+          brands: [{ $match: scoped.brand }, { $group: { _id: '$brand', count: { $sum: 1 } } }],
+          genders: [{ $match: scoped.gender }, { $group: { _id: '$gender', count: { $sum: 1 } } }],
+          fabrics: [
+            { $match: scoped.fabric },
+            { $match: { fabricKey: { $ne: null } } },
+            { $group: { _id: '$fabricKey', name: { $first: '$fabric' }, count: { $sum: 1 } } },
+          ],
+          sizes: [
+            { $match: scoped.size },
+            { $unwind: '$sizes' },
+            { $group: { _id: '$sizes', count: { $sum: 1 } } },
+          ],
           colors: [
+            { $match: scoped.color },
             { $unwind: '$swatches' },
             {
               $group: {
@@ -113,12 +137,23 @@ export const productRepository = {
             },
           ],
           price: [
+            { $match: scoped.price },
             { $group: { _id: null, min: { $min: '$priceMin' }, max: { $max: '$priceMax' } } },
           ],
         },
       },
     ]);
-    return result ?? { brands: [], genders: [], sizes: [], colors: [], price: [] };
+    return (
+      result ?? {
+        categories: [],
+        brands: [],
+        genders: [],
+        fabrics: [],
+        sizes: [],
+        colors: [],
+        price: [],
+      }
+    );
   },
 
   /**

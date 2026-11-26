@@ -66,6 +66,7 @@ export const catalogPaths = {
         query('category', 'Category slug; includes subcategories'),
         query('brand', 'Brand slug(s)'),
         query('gender', 'men, women, unisex, boys, girls, kids'),
+        query('fabric', 'Fabric(s), e.g. lawn,khaddar'),
         query('size', 'e.g. M,L or 32'),
         query('color', 'Color name(s), e.g. black,navy'),
         query('minPrice', 'Minimum price (PKR)', { type: 'integer' }),
@@ -86,8 +87,23 @@ export const catalogPaths = {
   '/products/filters': {
     get: {
       tags: ['Catalog'],
-      summary: 'Filter options with counts (brands, sizes, colors, price range)',
-      parameters: [query('q', 'Search text'), query('category', 'Category slug')],
+      summary: 'Filter options with counts for the listing sidebar',
+      description:
+        'Accepts the same filters as /products. Each facet is counted with every filter except its own, ' +
+        'so selecting a size still shows the other sizes. Category counts include subcategories.',
+      parameters: [
+        query('q', 'Search text'),
+        query('category', 'Category slug'),
+        query('brand', 'Brand slug(s)'),
+        query('gender', 'Gender(s)'),
+        query('fabric', 'Fabric(s)'),
+        query('size', 'Size(s)'),
+        query('color', 'Color name(s)'),
+        query('minPrice', 'Minimum price (PKR)', { type: 'integer' }),
+        query('maxPrice', 'Maximum price (PKR)', { type: 'integer' }),
+        query('inStock', 'Only products with stock', { type: 'boolean' }),
+        query('onSale', 'Only discounted products', { type: 'boolean' }),
+      ],
       responses: { '200': ok('Facets') },
     },
   },

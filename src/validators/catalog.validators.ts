@@ -171,6 +171,12 @@ const catalogFilters = {
   category: z.string().trim().max(100).optional(),
   brand: list(z.string().max(100)),
   gender: list(z.enum(GENDERS)),
+  fabric: list(
+    z
+      .string()
+      .max(80)
+      .transform((f) => f.toLowerCase()),
+  ),
   size: list(z.string().max(20).transform(normalizeSize)),
   color: list(
     z
@@ -194,9 +200,10 @@ export const productListQuery = paginationQuerySchema
     path: ['minPrice'],
   });
 
-export const productFacetsQuery = z.object({
-  q: catalogFilters.q,
-  category: catalogFilters.category,
+/** Facets accept the same filters as the listing (without paging or sorting). */
+export const productFacetsQuery = z.object(catalogFilters).refine(priceRangeOk, {
+  message: 'minPrice cannot be greater than maxPrice',
+  path: ['minPrice'],
 });
 
 export const suggestQuery = z.object({ q: z.string().trim().min(2).max(60) });

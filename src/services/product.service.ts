@@ -8,6 +8,7 @@ import { productRepository } from '../repositories/product.repository';
 import { stockMovementRepository } from '../repositories/stockMovement.repository';
 import { ApiError, type ErrorDetail } from '../utils/ApiError';
 import { type PaginationMeta } from '../utils/apiResponse';
+import { descendantIds } from '../utils/categoryTree';
 import { buildPaginationMeta } from '../utils/pagination';
 import {
   buildProductSort,
@@ -116,34 +117,47 @@ const findVariant = (product: { variants: IVariant[] }, variantId: string) => {
   return variant;
 };
 
+/**
+ * Turns the public filter query into builder input: category and brand slugs become ids.
+ * Returns null when a slug matches nothing, meaning the result is empty by definition.
+ */
+async function resolveFilters(
+  query: Omit<ProductFacetsQuery, never> & Partial<Pick<ProductListQuery, 'page' | 'limit'>>,
+): Promise<ProductFilterInput | null> {
+  const input: ProductFilterInput = {
+    q: query.q,
+    gender: query.gender,
+    fabric: query.fabric,
+    size: query.size,
+    color: query.color,
+    minPrice: query.minPrice,
+    maxPrice: query.maxPrice,
+    inStock: query.inStock,
+    onSale: query.onSale,
+  };
+
+  if (query.category) {
+    const ids = await categoryService.resolveSlugToIds(query.category);
+    if (!ids) return null;
+    input.categoryIds = ids.map(oid);
+  }
+
+  if (query.brand?.length) {
+    const brands = await brandRepository.findBySlugs(query.brand);
+    if (!brands.length) return null;
+    input.brandIds = brands.map((b) => b._id);
+  }
+  return input;
+}
+
 export const productService = {
   // ------------------------------------------------------------------ public
 
   async listPublic(query: ProductListQuery) {
-    const input: ProductFilterInput = {
-      q: query.q,
-      gender: query.gender,
-      size: query.size,
-      color: query.color,
-      minPrice: query.minPrice,
-      maxPrice: query.maxPrice,
-      inStock: query.inStock,
-      onSale: query.onSale,
-    };
+    const resolved = await resolveFilters(query);
+    if (!resolved) return emptyPage(query);
 
-    if (query.category) {
-      const ids = await categoryService.resolveSlugToIds(query.category);
-      if (!ids) return emptyPage(query);
-      input.categoryIds = ids.map(oid);
-    }
-
-    if (query.brand?.length) {
-      const brands = await brandRepository.findBySlugs(query.brand);
-      if (!brands.length) return emptyPage(query);
-      input.brandIds = brands.map((b) => b._id);
-    }
-
-    const filter = buildPublicProductFilter(input);
+    const filter = buildPublicProductFilter(resolved);
     const sort = buildProductSort(query.sort, Boolean(query.q));
     const { items, total } = await productRepository.list({
       filter,
@@ -155,20 +169,59 @@ export const productService = {
     return { items: items.map(toProductCard), meta: buildPaginationMeta(total, query) };
   },
 
-  /** Counts for the filter sidebar, scoped to the current category and search. */
+  /**
+   * Filter options with counts, for the listing sidebar. Accepts the same filters as the
+   * listing; each facet ignores its own filter (see productRepository.facets).
+   */
   async facets(query: ProductFacetsQuery) {
-    const input: ProductFilterInput = { q: query.q };
-    if (query.category) {
-      const ids = await categoryService.resolveSlugToIds(query.category);
-      if (!ids) return { brands: [], genders: [], sizes: [], colors: [], price: null };
-      input.categoryIds = ids.map(oid);
-    }
+    const empty = {
+      categories: [],
+      brands: [],
+      genders: [],
+      fabrics: [],
+      sizes: [],
+      colors: [],
+      price: null,
+    };
+    const resolved = await resolveFilters(query);
+    if (!resolved) return empty;
 
-    const raw = await productRepository.facets(buildPublicProductFilter(input));
-    const brands = await brandRepository.findByIds(raw.brands.map((b) => b._id));
+    const { q, ...rest } = resolved;
+    const scoped = (omit: (keyof ProductFilterInput)[]) => {
+      const input: ProductFilterInput = { ...rest };
+      for (const key of omit) delete input[key];
+      return buildPublicProductFilter(input);
+    };
+
+    const raw = await productRepository.facets(buildPublicProductFilter({ q }), {
+      category: scoped(['categoryIds']),
+      brand: scoped(['brandIds']),
+      gender: scoped(['gender']),
+      fabric: scoped(['fabric']),
+      size: scoped(['size']),
+      color: scoped(['color']),
+      price: scoped(['minPrice', 'maxPrice']),
+    });
+
+    const [brands, categories] = await Promise.all([
+      brandRepository.findByIds(raw.brands.map((b) => b._id)),
+      categoryService.flatActive(),
+    ]);
     const brandById = new Map(brands.map((b) => [String(b._id), b]));
 
+    // Products sit in one category each, so a parent's count is its own plus every descendant's.
+    const own = new Map(raw.categories.map((c) => [String(c._id), c.count]));
+    const categoryCounts = categories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      parent: c.parent,
+      sortOrder: c.sortOrder,
+      count: descendantIds(categories, c.id).reduce((sum, id) => sum + (own.get(id) ?? 0), 0),
+    }));
+
     return {
+      categories: categoryCounts,
       brands: raw.brands
         .map((b) => ({ brand: brandById.get(String(b._id)), count: b.count }))
         .filter((b) => b.brand && b.brand.isActive)
@@ -180,6 +233,9 @@ export const productService = {
         }))
         .sort((a, b) => a.name.localeCompare(b.name)),
       genders: raw.genders.map((g) => ({ value: g._id, count: g.count })),
+      fabrics: raw.fabrics
+        .map((f) => ({ value: f._id, name: f.name, count: f.count }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
       sizes: raw.sizes
         .map((s) => ({ value: s._id, count: s.count }))
         .sort((a, b) => compareSizes(a.value, b.value)),

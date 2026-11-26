@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   adjustStockBody,
+  productFacetsQuery,
   createProductBody,
   createVariantBody,
   productListQuery,
@@ -139,6 +140,37 @@ describe('productListQuery', () => {
     ['non numeric price', { minPrice: 'abc' }],
   ])('rejects %s', (_label, query) => {
     expect(productListQuery.safeParse(query).success).toBe(false);
+  });
+});
+
+describe('fabric and facet queries', () => {
+  it('lowercases fabric values and accepts commas or repeats', () => {
+    expect(productListQuery.parse({ fabric: 'Lawn, Raw Silk' }).fabric).toEqual([
+      'lawn',
+      'raw silk',
+    ]);
+    expect(productListQuery.parse({ fabric: ['Cotton', 'KHADDAR'] }).fabric).toEqual([
+      'cotton',
+      'khaddar',
+    ]);
+  });
+
+  it('lets facets take the same filters as the listing', () => {
+    const parsed = productFacetsQuery.parse({
+      category: 'women',
+      size: 'm',
+      fabric: 'Lawn',
+      minPrice: '1000',
+      inStock: 'true',
+    });
+    expect(parsed).toMatchObject({
+      category: 'women',
+      size: ['M'],
+      fabric: ['lawn'],
+      minPrice: 1000,
+      inStock: true,
+    });
+    expect(productFacetsQuery.safeParse({ minPrice: '5', maxPrice: '1' }).success).toBe(false);
   });
 });
 

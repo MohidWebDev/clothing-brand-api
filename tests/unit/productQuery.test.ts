@@ -61,6 +61,12 @@ describe('buildPublicProductFilter', () => {
     expect(colorOnly.variants.$elemMatch.size).toBeUndefined();
   });
 
+  it('filters by fabric key', () => {
+    expect(buildPublicProductFilter({ fabric: ['lawn', 'raw silk'] })).toMatchObject({
+      fabricKey: { $in: ['lawn', 'raw silk'] },
+    });
+  });
+
   it('adds stock and sale flags only when true', () => {
     expect(buildPublicProductFilter({ inStock: true, onSale: true })).toMatchObject({
       inStock: true,
