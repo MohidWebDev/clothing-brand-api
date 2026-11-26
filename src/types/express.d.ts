@@ -1,4 +1,4 @@
-export {};
+import type { AuthUser } from '../utils/ownership';
 
 declare global {
   namespace Express {
@@ -9,6 +9,8 @@ declare global {
         query?: unknown;
         params?: unknown;
       };
+      /** Set by authenticate() / optionalAuth(). */
+      user?: AuthUser;
     }
   }
 }
