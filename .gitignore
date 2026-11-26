@@ -1,0 +1,11 @@
+node_modules
+dist
+coverage
+logs/*
+!logs/.gitkeep
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.vercel
