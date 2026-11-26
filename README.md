@@ -11,6 +11,7 @@ cp .env.example .env
 docker compose up -d      # MongoDB + Redis
 npm install
 npm run seed              # system roles + first super admin (set SEED_ADMIN_* in .env)
+npm run seed:catalog      # demo brands, categories and ~27 products with variants
 npm run dev               # http://localhost:4000/api/v1/health, docs at /api/docs
 ```
 
@@ -71,6 +72,22 @@ tests/           unit, integration, helpers
 - **Cookies and deployment:** keep the web app and API on the same site (same parent domain, or proxy
   `/api` through the web host) and leave `COOKIE_SAMESITE=lax`. Fully cross-site setups need
   `COOKIE_SAMESITE=none` over HTTPS, and Safari may still block those cookies.
+
+## Catalog model
+
+- **Prices are whole PKR rupees** (integers). `compareAtPrice` is the struck-through "was" price.
+- **Products embed their variants** (size + color + SKU + stock). A product has at most 100 variants,
+  so embedding keeps reads to one query and lets a stock change be a single atomic update.
+- **Denormalised fields** (`priceMin`, `priceMax`, `inStock`, `sizes`, `swatches`, `onSale`, ...) are
+  recalculated on every save and stock change, so listing, filtering and sorting never scan variants.
+- **Stock is ledgered.** `PATCH /admin/inventory/...` changes stock atomically (it can never go below
+  zero, even under concurrent requests) and writes a `StockMovement` row.
+- **Public responses are whitelisted:** no storage ids, thresholds or exact warehouse counts (stock is
+  capped at 10 for display). Drafts, archived and soft-deleted products return 404.
+- **Filters:** `size` and `color` match the same in-stock variant. Search uses a MongoDB text index
+  (whole-word, relevance ranked); `/products/suggest` does word-prefix matching for autocomplete.
+- **Images** go through `POST /admin/uploads/images` (checked by file content, max 5 MB, up to 10) to
+  Cloudinary. Set `CLOUDINARY_*` in `.env`; without them uploads return 503.
 
 ## Testing
 

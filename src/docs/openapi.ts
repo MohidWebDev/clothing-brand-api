@@ -1,4 +1,5 @@
 import { authPaths, authSchemas, authTag } from './auth.docs';
+import { catalogPaths, catalogSchemas, catalogTags } from './catalog.docs';
 
 /**
  * OpenAPI 3 document. Each feature phase adds its paths and schemas here (or in files
@@ -15,9 +16,10 @@ export const openApiSpec = {
       '`{ success: false, error: { code, message, details? }, requestId }`.',
   },
   servers: [{ url: '/api/v1', description: 'Version 1' }],
-  tags: [{ name: 'Health', description: 'Liveness and readiness checks' }, authTag],
+  tags: [{ name: 'Health', description: 'Liveness and readiness checks' }, authTag, ...catalogTags],
   paths: {
     ...authPaths,
+    ...catalogPaths,
     '/health': {
       get: {
         tags: ['Health'],
@@ -69,6 +71,7 @@ export const openApiSpec = {
     },
     schemas: {
       ...authSchemas,
+      ...catalogSchemas,
       ErrorResponse: {
         type: 'object',
         properties: {

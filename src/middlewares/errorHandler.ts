@@ -45,6 +45,16 @@ export function normalizeError(err: unknown): ApiError {
     );
   }
 
+  if (e?.name === 'MulterError') {
+    if (e.code === 'LIMIT_FILE_SIZE') {
+      return new ApiError(413, 'PAYLOAD_TOO_LARGE', 'Image is too large');
+    }
+    if (e.code === 'LIMIT_FILE_COUNT' || e.code === 'LIMIT_UNEXPECTED_FILE') {
+      return ApiError.badRequest('Too many files, or files sent in the wrong field ("images")');
+    }
+    return ApiError.badRequest('Invalid upload');
+  }
+
   // Errors from body-parser and other http-errors based middleware
   if (e?.type === 'entity.parse.failed') return ApiError.badRequest('Malformed JSON body');
   if (e?.type === 'entity.too.large') {
