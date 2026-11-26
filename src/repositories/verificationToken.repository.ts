@@ -13,6 +13,9 @@ export const verificationTokenRepository = {
     expiresAt: Date;
   }) => VerificationToken.create(data),
 
+  findByHash: (tokenHash: string, type: VerificationTokenType) =>
+    VerificationToken.findOne({ tokenHash, type }),
+
   /** Atomically consumes a valid token, so it can never be used twice. */
   consume: (
     tokenHash: string,

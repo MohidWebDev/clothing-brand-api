@@ -2,9 +2,15 @@ import { createApp } from './app';
 import { connectDB, disconnectDB } from './config/db';
 import { env } from './config/env';
 import { logger } from './config/logger';
+import { closeEmailQueue } from './jobs/queues/email.queue';
+import { startEmailWorker } from './jobs/workers/email.worker';
 
 async function main() {
   await connectDB();
+
+  // Without REDIS_URL there is no worker: emails are delivered inline instead.
+  const emailWorker = startEmailWorker();
+  if (emailWorker) logger.info('Email worker started');
 
   const app = createApp();
   const server = app.listen(env.PORT, () => {
@@ -17,6 +23,8 @@ async function main() {
     shuttingDown = true;
     logger.info(`${signal} received, shutting down`);
     server.close(async () => {
+      await emailWorker?.close().catch((err) => logger.error({ err }, 'Error closing worker'));
+      await closeEmailQueue().catch((err) => logger.error({ err }, 'Error closing queue'));
       await disconnectDB().catch((err) => logger.error({ err }, 'Error closing MongoDB'));
       process.exit(0);
     });

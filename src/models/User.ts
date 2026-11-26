@@ -15,6 +15,9 @@ export interface IUser {
   passwordChangedAt?: Date;
   /** Soft delete marker: deleted users are hidden everywhere but kept for order history. */
   deletedAt?: Date | null;
+  /** Maintained by Mongoose `timestamps`. */
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export type UserDocument = HydratedDocument<IUser>;

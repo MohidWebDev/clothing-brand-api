@@ -29,7 +29,7 @@ const envSchema = z
     /** Number of reverse proxies in front of the app (Render/Railway/Nginx = 1). */
     TRUST_PROXY: z.coerce.number().int().min(0).default(0),
     RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
-    AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
+    AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
     DOCS_ENABLED: z.stringbool().default(true),
 
     // --- Auth ---
@@ -71,7 +71,10 @@ const envSchema = z
     }
   });
 
-const parsed = envSchema.safeParse(process.env);
+// `KEY=` lines in a .env file arrive as empty strings; treat them as unset.
+const rawEnv = Object.fromEntries(Object.entries(process.env).filter(([, value]) => value !== ''));
+
+const parsed = envSchema.safeParse(rawEnv);
 
 if (!parsed.success) {
   // eslint-disable-next-line no-console

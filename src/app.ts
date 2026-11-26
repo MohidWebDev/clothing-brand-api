@@ -4,9 +4,10 @@ import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import pinoHttp from 'pino-http';
-import { env } from './config/env';
+import { allowedOrigins, env } from './config/env';
 import { logger } from './config/logger';
 import { docsRouter } from './docs';
+import { csrfOriginCheck } from './middlewares/csrf';
 import { errorHandler } from './middlewares/errorHandler';
 import { notFoundHandler } from './middlewares/notFound';
 import { createApiLimiter } from './middlewares/rateLimiter';
@@ -44,13 +45,13 @@ export function createApp() {
   if (env.DOCS_ENABLED) app.use('/api', docsRouter);
 
   app.use(helmet());
-  app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
+  app.use(cors({ origin: allowedOrigins, credentials: true }));
   app.use('/api', createApiLimiter());
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
   app.use(rejectUnsafeInput);
 
-  app.use('/api/v1', v1Routes);
+  app.use('/api/v1', csrfOriginCheck, v1Routes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

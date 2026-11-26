@@ -6,6 +6,7 @@ export type ErrorCode =
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'UNPROCESSABLE'
+  | 'ACCOUNT_LOCKED'
   | 'PAYLOAD_TOO_LARGE'
   | 'TOO_MANY_REQUESTS'
   | 'INTERNAL_ERROR'
@@ -60,6 +61,10 @@ export class ApiError extends Error {
 
   static unprocessable(message = 'Request cannot be processed', details?: ErrorDetail[]) {
     return new ApiError(422, 'UNPROCESSABLE', message, details);
+  }
+
+  static locked(message = 'Account temporarily locked') {
+    return new ApiError(423, 'ACCOUNT_LOCKED', message);
   }
 
   static tooManyRequests(message = 'Too many requests, please try again later') {

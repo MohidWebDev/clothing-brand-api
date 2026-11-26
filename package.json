@@ -18,7 +18,8 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepare": "husky"
+    "prepare": "husky",
+    "seed": "tsx src/seeders/run.ts"
   },
   "dependencies": {
     "argon2": "^0.45.2",

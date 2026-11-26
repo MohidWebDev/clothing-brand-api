@@ -1,3 +1,4 @@
+import cookieParser from 'cookie-parser';
 import express, { type Router } from 'express';
 import pinoHttp from 'pino-http';
 import { errorHandler } from '../../src/middlewares/errorHandler';
@@ -9,6 +10,7 @@ export function createTestApp(mount: (router: Router) => void) {
   const app = express();
   app.use(pinoHttp({ level: 'silent' }));
   app.use(express.json());
+  app.use(cookieParser());
   app.use(rejectUnsafeInput);
 
   const router = express.Router();

@@ -3,7 +3,8 @@ import { type IRole, Role, type RoleDocument } from '../models';
 export const roleRepository = {
   findByName: (name: string): Promise<RoleDocument | null> => Role.findOne({ name }),
 
-  findById: (id: string): Promise<RoleDocument | null> => Role.findById(id),
+  findById: (id: string | { toString(): string }): Promise<RoleDocument | null> =>
+    Role.findById(id),
 
   list: (): Promise<RoleDocument[]> => Role.find().sort({ name: 1 }),
 
@@ -14,18 +15,12 @@ export const roleRepository = {
   ) =>
     Role.findOneAndUpdate(
       { name: role.name },
-      {
-        $set: { displayName: role.displayName, isSystem: true },
-        ...(overwritePermissions
-          ? {
-              $set: {
-                displayName: role.displayName,
-                isSystem: true,
-                permissions: role.permissions,
-              },
-            }
-          : { $setOnInsert: { permissions: role.permissions } }),
-      },
+      overwritePermissions
+        ? { $set: { displayName: role.displayName, isSystem: true, permissions: role.permissions } }
+        : {
+            $set: { displayName: role.displayName, isSystem: true },
+            $setOnInsert: { permissions: role.permissions },
+          },
       { upsert: true, new: true },
     ),
 };

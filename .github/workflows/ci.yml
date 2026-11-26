@@ -8,6 +8,28 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ping:1})'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      MONGODB_URI_TEST: mongodb://localhost:27017
+      REDIS_URL_TEST: redis://localhost:6379
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

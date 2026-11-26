@@ -1,3 +1,5 @@
+import { authPaths, authSchemas, authTag } from './auth.docs';
+
 /**
  * OpenAPI 3 document. Each feature phase adds its paths and schemas here (or in files
  * imported from here) so Swagger stays in step with the API.
@@ -13,8 +15,9 @@ export const openApiSpec = {
       '`{ success: false, error: { code, message, details? }, requestId }`.',
   },
   servers: [{ url: '/api/v1', description: 'Version 1' }],
-  tags: [{ name: 'Health', description: 'Liveness and readiness checks' }],
+  tags: [{ name: 'Health', description: 'Liveness and readiness checks' }, authTag],
   paths: {
+    ...authPaths,
     '/health': {
       get: {
         tags: ['Health'],
@@ -65,6 +68,7 @@ export const openApiSpec = {
       },
     },
     schemas: {
+      ...authSchemas,
       ErrorResponse: {
         type: 'object',
         properties: {
