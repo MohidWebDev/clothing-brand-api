@@ -19,11 +19,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "prepare": "husky",
-    "seed": "tsx src/seeders/run.ts"
+    "seed": "tsx src/seeders/run.ts",
+    "seed:catalog": "tsx src/seeders/runCatalog.ts"
   },
   "dependencies": {
     "argon2": "^0.45.2",
     "bullmq": "^6.7.10",
+    "cloudinary": "^2.11.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^18.0.10",
@@ -32,6 +34,7 @@
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.13.1",
+    "multer": "^2.5.0",
     "nodemailer": "^10.6.1",
     "pino": "^10.4.0",
     "pino-http": "^11.0.0",
@@ -46,6 +49,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.3.0",
     "@types/node": "^22.20.7",
     "@types/nodemailer": "^8.0.2",
     "@types/supertest": "^7.2.1",

@@ -56,6 +56,13 @@ const envSchema = z
     SMTP_SECURE: z.stringbool().default(false),
     EMAIL_FROM: z.string().min(1).default('Clothing Brand <no-reply@localhost>'),
 
+    // --- Media storage (Cloudinary). Optional until image uploads are needed. ---
+    CLOUDINARY_CLOUD_NAME: z.string().optional(),
+    CLOUDINARY_API_KEY: z.string().optional(),
+    CLOUDINARY_API_SECRET: z.string().optional(),
+    CLOUDINARY_FOLDER: z.string().default('clothing-brand'),
+    MAX_UPLOAD_MB: z.coerce.number().positive().max(20).default(5),
+
     // --- Seeding ---
     SEED_ADMIN_NAME: z.string().default('Super Admin'),
     SEED_ADMIN_EMAIL: z.string().email().optional(),
