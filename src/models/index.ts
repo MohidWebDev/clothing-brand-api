@@ -4,5 +4,6 @@ export * from './Product';
 export * from './RefreshToken';
 export * from './Role';
 export * from './StockMovement';
+export * from './Subscriber';
 export * from './User';
 export * from './VerificationToken';

@@ -22,6 +22,16 @@ type LeanProduct = Omit<IProduct, 'brand' | 'category' | 'variants'> & {
 
 const id = (value: { toString(): string }) => String(value);
 
+const NEW_PRODUCT_DAYS = 30;
+
+/** A short teaser for cards: the first ~140 characters, cut at a word boundary. */
+export function summarize(text: string, max = 140): string {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  if (clean.length <= max) return clean;
+  const cut = clean.slice(0, max);
+  return `${cut.slice(0, cut.lastIndexOf(' ') > 60 ? cut.lastIndexOf(' ') : max).trimEnd()}…`;
+}
+
 const toRef = (ref: Ref | Types.ObjectId) =>
   'name' in ref ? { id: id(ref._id), name: ref.name, slug: ref.slug } : { id: id(ref) };
 
@@ -63,6 +73,10 @@ export function toProductCard(product: LeanProduct) {
     brand: toRef(product.brand),
     category: toRef(product.category),
     gender: product.gender,
+    summary: summarize(product.description),
+    isNew:
+      !!product.createdAt &&
+      Date.now() - new Date(product.createdAt).getTime() < NEW_PRODUCT_DAYS * 86_400_000,
     images: product.images.slice(0, 2).map(toImage),
     price: product.priceMin,
     priceMax: product.priceMax,

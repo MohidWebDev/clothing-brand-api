@@ -16,9 +16,45 @@ export const openApiSpec = {
       '`{ success: false, error: { code, message, details? }, requestId }`.',
   },
   servers: [{ url: '/api/v1', description: 'Version 1' }],
-  tags: [{ name: 'Health', description: 'Liveness and readiness checks' }, authTag, ...catalogTags],
+  tags: [
+    { name: 'Health', description: 'Liveness and readiness checks' },
+    { name: 'Newsletter', description: 'Newsletter and VIP list sign-ups' },
+    authTag,
+    ...catalogTags,
+  ],
   paths: {
     ...authPaths,
+    '/newsletter/subscribe': {
+      post: {
+        tags: ['Newsletter'],
+        summary: 'Join the newsletter or VIP list',
+        description:
+          'Idempotent and enumeration-safe: always answers 200 for a valid email. Rate limited. ' +
+          'The `website` field is a honeypot and must be left empty.',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['email'],
+                properties: {
+                  email: { type: 'string', format: 'email' },
+                  name: { type: 'string' },
+                  city: { type: 'string' },
+                  source: { type: 'string', enum: ['newsletter', 'vip'], default: 'newsletter' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': { description: 'Subscribed' },
+          '400': { description: 'Validation failed' },
+          '429': { description: 'Too many attempts' },
+        },
+      },
+    },
     ...catalogPaths,
     '/health': {
       get: {
